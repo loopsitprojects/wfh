@@ -30,7 +30,7 @@
         @error('password')<div class="form-error">{{ $message }}</div>@enderror
       </div>
 
-      {{-- Admin-only Role & Manager Selection --}}
+      {{-- Role & Manager Selection --}}
       @if(auth()->user()->isAdmin())
         <div class="form-group">
           <label>Role <span style="color:var(--danger)">*</span></label>
@@ -52,10 +52,17 @@
           </select>
         </div>
       @else
-        {{-- Manager-only Hidden Defaults --}}
-        <input type="hidden" name="role" value="employee">
+        {{-- Manager adding user --}}
+        <div class="form-group">
+          <label>Role <span style="color:var(--danger)">*</span></label>
+          <select name="role" class="form-control">
+            <option value="employee" selected>Employee</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
         <input type="hidden" name="manager_id" value="{{ auth()->id() }}">
       @endif
+
 
       <div style="display:flex;gap:12px;margin-top:20px">
         <button type="submit" class="btn btn-primary" style="flex:1">{{ isset($user) ? 'Update User' : 'Create User' }}</button>

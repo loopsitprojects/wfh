@@ -34,7 +34,11 @@ Route::middleware(['auth', 'role:employee'])
         Route::post('/pulse',       [PulseController::class, 'store'])->name('pulse.store');
         Route::post('/timer/start',  [TimerController::class, 'start'])->name('timer.start');
         Route::post('/timer/stop',   [TimerController::class, 'stop'])->name('timer.stop');
+        Route::post('/timer/pause',  [TimerController::class, 'pause'])->name('timer.pause');
+        Route::post('/timer/resume', [TimerController::class, 'resume'])->name('timer.resume');
+        Route::post('/timer/request-stop', [TimerController::class, 'requestStop'])->name('timer.request-stop');
         Route::get('/timer/status',  [TimerController::class, 'status'])->name('timer.status');
+
     });
 
 // ─── Manager ──────────────────────────────────────────────────────────────────
@@ -51,10 +55,18 @@ Route::middleware(['auth', 'role:manager,admin'])
         Route::post('/reports/generate',    [ReportController::class, 'generate'])->name('reports.generate');
         Route::get('/reports/export/csv',   [ReportController::class, 'exportCsv'])->name('reports.csv');
         Route::get('/reports/export/pdf',   [ReportController::class, 'exportPdf'])->name('reports.pdf');
+        
         // Managers can also add employees
         Route::get('/employees/create', [AdminController::class, 'createUser'])->name('employees.create');
         Route::post('/employees',        [AdminController::class, 'storeEmployee'])->name('employees.store');
+        Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('users.edit');
+        Route::put('/users/{user}',      [AdminController::class, 'updateUser'])->name('users.update');
+        Route::delete('/users/{user}',   [ManagerController::class, 'destroyUser'])->name('users.destroy');
+        Route::post('/users/{user}/reset-timer', [TimerController::class, 'forceStop'])->name('users.reset-timer');
     });
+
+
+
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:admin'])

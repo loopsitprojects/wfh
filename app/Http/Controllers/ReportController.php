@@ -10,14 +10,11 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user      = auth()->user();
-        $employees = $user->isAdmin()
-            ? User::where('role', 'employee')->get()
-            : $user->employees()->get();
-
-        return view('manager.reports', compact('employees'));
+        $data = $this->buildReportData($request);
+        $employees = User::where('role', 'employee')->get();
+        return view('manager.reports', array_merge($data, ['employees' => $employees]));
     }
 
     public function generate(Request $request)
@@ -29,24 +26,26 @@ class ReportController extends Controller
     public function exportCsv(Request $request)
     {
         $data = $this->buildReportData($request);
-
-        $filename = 'report_' . now()->format('Y-m-d') . '.csv';
-        $headers  = [
-            'Content-Type'        => 'text/csv',
+        $type = $request->type ?? 'summary';
+        $filename = 'wfh_report_' . $type . '_' . now()->format('Y-m-d') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"$filename\"",
         ];
 
-        $callback = function () use ($data) {
+        $callback = function () use ($data, $type) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['Employee', 'Date', 'Hours Worked', 'Pulses', 'Sessions']);
-            foreach ($data['rows'] as $row) {
-                fputcsv($file, [
-                    $row['name'],
-                    $row['date'],
-                    number_format($row['hours'], 2),
-                    $row['pulses'],
-                    $row['sessions'],
-                ]);
+            if ($type === 'summary') {
+                fputcsv($file, ['Employee', 'Email', 'Total Hours', 'Total Sessions', 'Total Pulses']);
+                foreach ($data['rows'] as $row) {
+                    fputcsv($file, [$row['name'], $row['email'], $row['hours'], $row['sessions'], $row['pulses']]);
+                }
+            } else {
+                fputcsv($file, ['Employee', 'Email', 'Date', 'Start Time', 'End Time', 'Duration', 'Pulse Description', 'Approver']);
+                foreach ($data['details'] as $d) {
+                    fputcsv($file, [$d['employee'], $d['email'], $d['date'], $d['start'], $d['end'], $d['duration'], $d['pulse'], $d['approver']]);
+                }
             }
             fclose($file);
         };
@@ -56,25 +55,28 @@ class ReportController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $data     = $this->buildReportData($request);
-        $pdf      = Pdf::loadView('manager.report_pdf', $data)->setPaper('a4', 'landscape');
-        $filename = 'report_' . now()->format('Y-m-d') . '.pdf';
+        $data = $this->buildReportData($request);
+        $type = $request->type ?? 'summary';
+        $data['type'] = $type;
+
+        $view = ($type === 'summary') ? 'manager.report_summary_pdf' : 'manager.report_detailed_pdf';
+        $pdf = Pdf::loadView($view, $data)->setPaper('a4', 'landscape');
+        
+        $filename = 'wfh_report_' . $type . '_' . now()->format('Y-m-d') . '.pdf';
         return $pdf->download($filename);
     }
 
     private function buildReportData(Request $request): array
     {
-        $user      = auth()->user();
-        $dateFrom  = $request->date_from ?? now()->startOfMonth()->toDateString();
-        $dateTo    = $request->date_to   ?? now()->toDateString();
-        $empFilter = $request->employee_id;
+        $dateFrom = $request->date_from ?? now()->startOfMonth()->toDateString();
+        $dateTo   = $request->date_to   ?? now()->toDateString();
+        $search   = $request->search;
 
-        $empQuery = $user->isAdmin()
-            ? User::where('role', 'employee')
-            : $user->employees();
-
-        if ($empFilter) {
-            $empQuery->where('id', $empFilter);
+        $empQuery = User::where('role', 'employee');
+        if ($search) {
+            $empQuery->where(function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")->orWhere('email', 'like', "%$search%");
+            });
         }
 
         $employees = $empQuery->get();
@@ -86,7 +88,7 @@ class ReportController extends Controller
             $logs = $emp->timeLogs()
                 ->whereBetween('started_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59'])
                 ->whereNotNull('ended_at')
-                ->with('pulse')
+                ->with(['pulse.approver'])
                 ->get();
 
             $pulseCount = $emp->pulses()
@@ -99,7 +101,6 @@ class ReportController extends Controller
             $rows[] = [
                 'name'     => $emp->name,
                 'email'    => $emp->email,
-                'date'     => "$dateFrom to $dateTo",
                 'hours'    => $hours,
                 'pulses'   => $pulseCount,
                 'sessions' => $logs->count(),
@@ -108,11 +109,14 @@ class ReportController extends Controller
             foreach ($logs as $log) {
                 $details[] = [
                     'employee' => $emp->name,
-                    'date'     => $log->started_at->format('Y-m-d'),
+                    'email'    => $emp->email,
+                    'date'     => $log->started_at->format('M d, Y'),
                     'start'    => $log->started_at->format('h:i A'),
                     'end'      => $log->ended_at->format('h:i A'),
                     'duration' => $log->getDurationFormatted(),
                     'pulse'    => $log->pulse->description ?? 'No description',
+                    'image'    => $log->pulse->image_path ?? null,
+                    'approver' => $log->pulse->approver->name ?? '—',
                 ];
             }
 
@@ -120,6 +124,11 @@ class ReportController extends Controller
             $summary['total_sessions'] += $logs->count();
             $summary['total_pulses']   += $pulseCount;
         }
+
+        // Sort details by date latest first
+        usort($details, function($a, $b) {
+            return strtotime($b['date']) - strtotime($a['date']);
+        });
 
         return compact('rows', 'details', 'summary', 'dateFrom', 'dateTo');
     }

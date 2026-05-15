@@ -1,126 +1,97 @@
 @extends('layouts.app')
-@section('title','Reports')
-@section('page-title','Reports & Analytics')
+@section('title','Work Reports')
+@section('page-title','Team Work Reports')
 
 @section('content')
-<div class="grid-2" style="margin-bottom:24px">
-  <div class="card">
-    <div class="card-title" style="margin-bottom:16px">Generate Report</div>
-    <form id="report-form">
-      @csrf
-      <div class="form-group">
-        <label>Date From</label>
-        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ now()->startOfMonth()->toDateString() }}">
+<div class="card" style="margin-bottom:24px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px">
+    {{-- Filters --}}
+    <form method="GET" style="display:flex;gap:12px;flex:1;min-width:300px;align-items:flex-end">
+      <div class="form-group" style="margin:0;flex:1">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">Search Employee</label>
+        <input type="text" name="search" class="form-control" placeholder="Name or email…" value="{{ request('search') }}">
       </div>
-      <div class="form-group">
-        <label>Date To</label>
-        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ now()->toDateString() }}">
+      <div class="form-group" style="margin:0;width:140px">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">From</label>
+        <input type="date" name="date_from" class="form-control" value="{{ $dateFrom }}">
       </div>
-      <div class="form-group">
-        <label>Employee</label>
-        <select name="employee_id" id="employee_id" class="form-control">
-          <option value="">All Employees</option>
-          @foreach($employees as $emp)
-            <option value="{{ $emp->id }}">{{ $emp->name }}</option>
-          @endforeach
-        </select>
+      <div class="form-group" style="margin:0;width:140px">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">To</label>
+        <input type="date" name="date_to" class="form-control" value="{{ $dateTo }}">
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button type="button" class="btn btn-primary" onclick="generateReport()">Generate</button>
-        <a id="csv-btn" href="#" class="btn btn-outline">⬇ CSV</a>
-        <a id="pdf-btn" href="#" class="btn btn-outline">⬇ PDF</a>
-      </div>
+      <button type="submit" class="btn btn-primary" style="padding:10px 20px">Update View</button>
     </form>
-  </div>
 
-  <div class="card" id="summary-card" style="display:none">
-    <div class="card-title" style="margin-bottom:16px">Summary</div>
-    <div class="stats-grid" style="grid-template-columns:1fr;gap:12px">
-      <div class="stat-card success"><div class="stat-value" id="s-hours">—</div><div class="stat-label">Total Hours</div></div>
-      <div class="stat-card info"><div class="stat-value" id="s-sessions">—</div><div class="stat-label">Sessions</div></div>
-      <div class="stat-card warning"><div class="stat-value" id="s-pulses">—</div><div class="stat-label">Pulses</div></div>
+    {{-- Export Actions --}}
+    <div style="display:flex;gap:10px;align-items:center;background:rgba(255,255,255,0.03);padding:15px;border-radius:12px;border:1px solid rgba(255,255,255,0.05)">
+      <div style="margin-right:10px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700;margin-bottom:8px">Export Reports</div>
+        <div style="display:flex;gap:8px">
+          {{-- Summary Column --}}
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:var(--muted);text-align:center">Summary</span>
+            <div style="display:flex;gap:4px">
+              <a href="{{ route('manager.reports.pdf', ['type' => 'summary', 'date_from' => $dateFrom, 'date_to' => $dateTo, 'search' => request('search')]) }}" class="btn btn-outline btn-sm" title="Download Summary PDF">📄 PDF</a>
+              <a href="{{ route('manager.reports.csv', ['type' => 'summary', 'date_from' => $dateFrom, 'date_to' => $dateTo, 'search' => request('search')]) }}" class="btn btn-outline btn-sm" title="Download Summary CSV">📊 CSV</a>
+            </div>
+          </div>
+          {{-- Detailed Column --}}
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:var(--muted);text-align:center">Detailed</span>
+            <div style="display:flex;gap:4px">
+              <a href="{{ route('manager.reports.pdf', ['type' => 'detailed', 'date_from' => $dateFrom, 'date_to' => $dateTo, 'search' => request('search')]) }}" class="btn btn-success btn-sm" style="background:#10b981;border-color:#10b981" title="Download Detailed PDF">📄 PDF</a>
+              <a href="{{ route('manager.reports.csv', ['type' => 'detailed', 'date_from' => $dateFrom, 'date_to' => $dateTo, 'search' => request('search')]) }}" class="btn btn-success btn-sm" style="background:#10b981;border-color:#10b981" title="Download Detailed CSV">📊 CSV</a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="card" id="report-table-wrap" style="display:none">
-  <div class="card-title" style="margin-bottom:16px">Report Results</div>
+
+<div class="card">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Employee</th><th>Period</th><th>Hours</th><th>Sessions</th><th>Pulses</th></tr></thead>
-      <tbody id="report-tbody"></tbody>
-    </table>
-  </div>
-</div>
-<div class="card" id="details-table-wrap" style="display:none;margin-top:24px">
-  <div class="card-title" style="margin-bottom:16px">Detailed Session History</div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Date</th><th>Employee</th><th>Start</th><th>End</th><th>Duration</th><th>Pulse Description</th></tr></thead>
-      <tbody id="details-tbody"></tbody>
-    </table>
-  </div>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Date</th>
+          <th>Session Time</th>
+          <th>Duration</th>
+          <th>Proof</th>
+          <th>Approver</th>
+        </tr>
+      </thead>
+      <tbody>
+      @forelse($details as $d)
+      <tr>
+        <td>
+          <div style="font-weight:600">{{ $d['employee'] }}</div>
+          <div style="font-size:11px;color:var(--muted)">{{ $d['email'] }}</div>
+        </td>
+        <td>{{ $d['date'] }}</td>
+        <td>
+          <div style="font-size:13px">{{ $d['start'] }} - {{ $d['end'] }}</div>
+        </td>
+        <td>
+          <span style="font-weight:600;color:var(--success)">{{ $d['duration'] }}</span>
+        </td>
+        <td>
+          @if($d['image'])
+            <a href="{{ Storage::url($d['image']) }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px">View Photo</a>
+          @else
+            <span style="color:var(--muted)">—</span>
+          @endif
+        </td>
+        <td style="font-weight:600;color:var(--primary)">
+          {{ $d['approver'] }}
+        </td>
+      </tr>
+      @empty
+        <tr><td colspan="6"><div class="empty-state"><h3>No session logs found</h3><p>Try adjusting your date filters.</p></div></td></tr>
+      @endforelse
+    </tbody>
+  </table>
 </div>
 @endsection
-
-@push('scripts')
-<script>
-function getParams(){
-  const d = new FormData(document.getElementById('report-form'));
-  return new URLSearchParams({
-    date_from: d.get('date_from'),
-    date_to:   d.get('date_to'),
-    employee_id: d.get('employee_id') || '',
-  });
-}
-
-function generateReport(){
-  const p = getParams();
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = 'Generating…';
-
-  fetch('{{ route("manager.reports.generate") }}', {
-    method:'POST',
-    headers:{'X-CSRF-TOKEN':csrfToken,'Content-Type':'application/x-www-form-urlencoded'},
-    body: p.toString()
-  }).then(r=>r.json()).then(data=>{
-    btn.disabled = false; btn.textContent = 'Generate';
-    
-    document.getElementById('summary-card').style.display='block';
-    document.getElementById('report-table-wrap').style.display='block';
-    document.getElementById('details-table-wrap').style.display='block';
-    
-    document.getElementById('s-hours').textContent    = data.summary.total_hours.toFixed(1)+'h';
-    document.getElementById('s-sessions').textContent = data.summary.total_sessions;
-    document.getElementById('s-pulses').textContent   = data.summary.total_pulses;
-
-    const tbody = document.getElementById('report-tbody');
-    tbody.innerHTML = data.rows.map(r=>`
-      <tr>
-        <td style="font-weight:600">${r.name}</td>
-        <td style="color:var(--muted);font-size:12px">${r.date}</td>
-        <td><span class="badge badge-success">${r.hours}h</span></td>
-        <td>${r.sessions}</td>
-        <td>${r.pulses}</td>
-      </tr>`).join('');
-
-    const dtbody = document.getElementById('details-tbody');
-    dtbody.innerHTML = data.details.map(d=>`
-      <tr>
-        <td>${d.date}</td>
-        <td style="font-weight:500">${d.employee}</td>
-        <td>${d.start}</td>
-        <td>${d.end}</td>
-        <td><span class="badge badge-primary">${d.duration}</span></td>
-        <td style="font-size:12px;color:var(--muted)">${d.pulse}</td>
-      </tr>`).join('');
-
-    document.getElementById('csv-btn').href = '{{ route("manager.reports.csv") }}?' + p;
-    document.getElementById('pdf-btn').href = '{{ route("manager.reports.pdf") }}?' + p;
-  }).catch(() => {
-    btn.disabled = false; btn.textContent = 'Generate';
-    alert('Error generating report.');
-  });
-}
-</script>
-@endpush

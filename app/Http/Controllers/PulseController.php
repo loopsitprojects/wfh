@@ -26,10 +26,10 @@ class PulseController extends Controller
 
         $request->validate([
             'image'       => ['required', 'image', 'max:5120'],
-            'description' => ['nullable', 'string', 'max:500'],
+            'description' => ['required', 'string', 'max:500'],
         ]);
 
-        $path = $request->file('image')->store('pulses', 'public');
+        $path = $request->file('image')->store('uploads/pulses', 'public');
 
         $pulse = Pulse::create([
             'employee_id' => $user->id,
@@ -39,10 +39,19 @@ class PulseController extends Controller
             'status'      => 'pending',
         ]);
 
-        // Notify manager
-        if ($user->manager) {
-            $user->manager->notify(new PulseRequestedNotification($pulse));
+
+
+        // Notify all managers
+        try {
+            $managers = User::whereIn('role', ['manager', 'admin'])->get();
+            foreach ($managers as $manager) {
+                $manager->notify(new PulseRequestedNotification($pulse));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Mail Error: ' . $e->getMessage());
         }
+
+
 
         return redirect()->route('employee.dashboard')
             ->with('success', 'Pulse request sent! Waiting for manager approval.');
@@ -52,9 +61,9 @@ class PulseController extends Controller
     public function index(Request $request)
     {
         $user  = auth()->user();
-        $query = Pulse::with('employee')
-            ->where('manager_id', $user->id)
+        $query = Pulse::with(['employee', 'approver'])
             ->latest();
+
 
         if ($request->status) {
             $query->where('status', $request->status);
@@ -72,25 +81,45 @@ class PulseController extends Controller
     {
         $this->authorizeManager($pulse);
 
+        if ($pulse->status !== 'pending') {
+            return back()->with('error', 'This pulse has already been processed.');
+        }
+
+
         $request->validate([
-            'duration_hours' => ['required', 'numeric', 'min:0.1', 'max:24']
+            'hours'   => ['required', 'integer', 'min:0', 'max:24'],
+            'minutes' => ['required', 'integer', 'min:0', 'max:59'],
         ]);
+
+        $durationHours = $request->hours + ($request->minutes / 60);
+        
+        if ($durationHours <= 0) {
+            return back()->with('error', 'Duration must be greater than 0.');
+        }
 
         $pulse->update([
             'status'         => 'approved',
-            'duration_hours' => $request->duration_hours,
+            'duration_hours' => $durationHours,
             'approved_at'    => now(),
+            'approved_by'    => auth()->id(),
         ]);
+
 
         // Auto-start the timer (create TimeLog)
         \App\Models\TimeLog::create([
             'employee_id'     => $pulse->employee_id,
             'pulse_id'        => $pulse->id,
-            'allocated_hours' => $request->duration_hours,
+            'allocated_hours' => $durationHours,
             'started_at'      => now(),
         ]);
 
-        $pulse->employee->notify(new PulseDecisionNotification($pulse));
+
+        try {
+            $pulse->employee->notify(new PulseDecisionNotification($pulse));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Mail Error: ' . $e->getMessage());
+        }
+
 
         return back()->with('success', 'Pulse approved and timer started for ' . $request->duration_hours . ' hours.');
     }
@@ -100,22 +129,33 @@ class PulseController extends Controller
     {
         $this->authorizeManager($pulse);
 
+        if ($pulse->status !== 'pending') {
+            return back()->with('error', 'This pulse has already been processed.');
+        }
+
         $request->validate(['reason' => ['nullable', 'string', 'max:300']]);
+
 
         $pulse->update([
             'status'           => 'rejected',
             'rejection_reason' => $request->reason,
         ]);
 
-        $pulse->employee->notify(new PulseDecisionNotification($pulse));
+        try {
+            $pulse->employee->notify(new PulseDecisionNotification($pulse));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Mail Error: ' . $e->getMessage());
+        }
+
 
         return back()->with('success', 'Pulse rejected.');
     }
 
     private function authorizeManager(Pulse $pulse): void
     {
-        if ($pulse->manager_id !== auth()->id() && !auth()->user()->isAdmin()) {
+        if (!auth()->user()->isManager() && !auth()->user()->isAdmin()) {
             abort(403);
         }
     }
+
 }

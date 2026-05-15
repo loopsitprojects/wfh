@@ -62,10 +62,10 @@ class User extends Authenticatable
     {
         return $this->pulses()
             ->where('status', 'approved')
-            ->whereDoesntHave('timeLog')
             ->latest()
             ->first();
     }
+
 
     /** Currently running (not stopped) timer */
     public function getActiveTimer(): ?TimeLog
@@ -76,11 +76,29 @@ class User extends Authenticatable
     /** Total seconds worked today */
     public function getTodaySeconds(): int
     {
-        return (int) $this->timeLogs()
+        $today = (int) $this->timeLogs()
             ->whereDate('started_at', today())
             ->whereNotNull('ended_at')
             ->sum('duration_seconds');
+
+        $active = $this->getActiveTimer();
+        if ($active) {
+            $elapsed = now()->diffInSeconds($active->started_at);
+            
+            // Cap to pulse remaining time
+            $pulse = $active->pulse;
+            if ($pulse) {
+                $spentSoFar = $pulse->timeLog()->where('id', '!=', $active->id)->whereNotNull('ended_at')->sum('duration_seconds');
+                $remaining = ($pulse->duration_hours * 3600) - $spentSoFar;
+                $today += min($elapsed, $remaining);
+            } else {
+                $today += $elapsed;
+            }
+        }
+        
+        return max(0, $today);
     }
+
 
     /** Total seconds worked this week */
     public function getWeekSeconds(): int

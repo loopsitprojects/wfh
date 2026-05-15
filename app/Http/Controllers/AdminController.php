@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Pulse;
 use App\Models\TimeLog;
-use App\Models\Project;
+
 use Illuminate\Http\Request;
 
 class AdminController extends Controller
@@ -17,13 +17,12 @@ class AdminController extends Controller
         $totalManagers  = User::where('role', 'manager')->count();
         $activeToday    = TimeLog::whereDate('started_at', today())->distinct('employee_id')->count();
         $pendingPulses  = Pulse::where('status', 'pending')->count();
-        $totalProjects  = Project::count();
 
         $recentUsers = User::latest()->take(5)->get();
 
         return view('admin.dashboard', compact(
             'totalUsers', 'totalEmployees', 'totalManagers',
-            'activeToday', 'pendingPulses', 'totalProjects', 'recentUsers'
+            'activeToday', 'pendingPulses', 'recentUsers'
         ));
     }
 
@@ -78,17 +77,22 @@ class AdminController extends Controller
             'username'    => ['required', 'string', 'max:50', 'unique:users'],
             'email'       => ['required', 'email', 'unique:users'],
             'password'    => ['required', 'string', 'min:8'],
+            'role'        => ['required', 'in:employee,manager'],
         ]);
 
         $data['name']       = $data['username'];
         $data['password']   = bcrypt($data['password']);
-        $data['role']       = 'employee';
-        $data['manager_id'] = auth()->id();
+        
+        // If it's a manager being created, they don't necessarily need a manager_id
+        // But if we want to keep them under the current manager, we can.
+        // Usually managers are independent.
+        $data['manager_id'] = ($data['role'] === 'manager') ? null : auth()->id();
 
         User::create($data);
 
-        return redirect()->route('manager.team')->with('success', 'Employee added to your team.');
+        return redirect()->route('manager.team')->with('success', ucfirst($data['role']) . ' added successfully.');
     }
+
 
     public function editUser(User $user)
     {
@@ -111,7 +115,8 @@ class AdminController extends Controller
         else { $data['password'] = bcrypt($data['password']); }
 
         $user->update($data);
-        return redirect()->route('admin.users')->with('success', 'User updated successfully.');
+        $route = auth()->user()->isAdmin() ? 'admin.users' : 'manager.team';
+        return redirect()->route($route)->with('success', 'User updated successfully.');
     }
 
     public function toggleUser(User $user)

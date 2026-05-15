@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-  function fmtSec($s){ $h=intdiv($s,3600);$m=intdiv($s%3600,60);return sprintf('%dh %02dm',$h,$m); }
+  function fmtSec($s){ $s=abs($s); $h=intdiv($s,3600);$m=intdiv($s%3600,60);return sprintf('%dh %02dm',$h,$m); }
 @endphp
 
 {{-- Stats --}}
@@ -67,11 +67,23 @@
       @else Request a pulse to start timer
       @endif
     </div>
-    <div class="timer-actions">
+    <div class="timer-actions" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
       @if($activeTimer)
-        <button class="btn btn-danger btn-lg" id="btn-stop" onclick="stopTimer()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-          Stop Timer
+        <button class="btn btn-warning btn-lg" id="btn-pause" onclick="pauseTimer()" style="background:#f59e0b;border-color:#f59e0b">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          Pause Timer
+        </button>
+        @if($activePulse && !$activePulse->stop_requested)
+          <button class="btn btn-outline btn-lg" id="btn-request-stop" onclick="requestStop()" style="border-color:var(--danger);color:var(--danger)">
+            Request to Stop
+          </button>
+        @elseif($activePulse && $activePulse->stop_requested)
+          <span class="badge badge-muted" style="padding:12px 20px;font-size:14px">Stop Requested...</span>
+        @endif
+      @elseif($activePulse && $activePulse->is_paused)
+        <button class="btn btn-success btn-lg" id="btn-resume" onclick="resumeTimer()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Resume Timer
         </button>
       @elseif($activePulse)
         <button class="btn btn-success btn-lg" id="btn-start" onclick="startTimer()">
@@ -84,6 +96,7 @@
         </span>
       @endif
     </div>
+
   </div>
 
   {{-- Pulse Request --}}
@@ -99,10 +112,8 @@
       <div class="alert alert-warning" style="margin-bottom:0">
         ⏳ Awaiting manager approval for your pulse request.
       </div>
-    @elseif(!auth()->user()->manager_id)
-      <div class="alert alert-danger" style="margin-bottom:0">No manager assigned. Contact admin.</div>
     @else
-      <form method="POST" action="{{ route('employee.pulse.store') }}" enctype="multipart/form-data">
+      <form method="POST" action="{{ route('employee.pulse.store') }}" enctype="multipart/form-data" onsubmit="document.getElementById('btn-request-pulse').classList.add('loading')">
         @csrf
         <div class="form-group" style="margin-bottom:12px">
           <div class="file-upload" id="drop-zone" onclick="document.getElementById('image-input').click()" style="padding:20px 10px">
@@ -114,10 +125,13 @@
           </div>
           <input type="file" id="image-input" name="image" accept="image/*" style="display:none" required onchange="previewImage(this)">
         </div>
+
         <div class="form-group" style="margin-bottom:12px">
-          <input type="text" name="description" class="form-control" placeholder="Quick note (optional)…" style="font-size:13px;padding:8px 12px">
+          <label>Work Description</label>
+          <textarea name="description" class="form-control" placeholder="What are you working on?…" required style="font-size:13px;padding:8px 12px"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+
+        <button type="submit" id="btn-request-pulse" class="btn btn-primary" style="width:100%;justify-content:center">
           Send Request
         </button>
       </form>
@@ -134,15 +148,34 @@
   @if($recentLogs->count())
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Date</th><th>Start</th><th>End</th><th>Duration</th><th>Pulse</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Duration</th>
+          <th>Status</th>
+        </tr>
+      </thead>
       <tbody>
         @foreach($recentLogs as $log)
         <tr>
-          <td>{{ $log->started_at->format('M d, Y') }}</td>
-          <td>{{ $log->started_at->format('h:i A') }}</td>
-          <td>{{ $log->ended_at?->format('h:i A') ?? '—' }}</td>
-          <td><span class="badge badge-success">{{ $log->getDurationFormatted() }}</span></td>
-          <td><span class="badge {{ $log->pulse->statusBadgeClass() }}">{{ ucfirst($log->pulse->status) }}</span></td>
+          <td>
+            <div style="font-weight:600;font-size:13px">{{ $log->started_at->format('h:i A') }}</div>
+            <div style="font-size:11px;color:var(--muted)">{{ $log->started_at->format('d M') }}</div>
+          </td>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:13px">
+            @if($log->duration_seconds)
+              {{ floor($log->duration_seconds/3600) }}h {{ floor(($log->duration_seconds%3600)/60) }}m
+            @else
+              <span style="color:var(--success)">Running...</span>
+            @endif
+          </td>
+          <td>
+            @if($log->ended_at)
+              <span class="badge badge-muted">Completed</span>
+            @else
+              <span class="badge badge-success">Active</span>
+            @endif
+          </td>
         </tr>
         @endforeach
       </tbody>
@@ -157,38 +190,8 @@
 @push('scripts')
 <script>
 let isRunning = false;
-@if($activeTimer)
-  let startTime = {{ $activeTimer->started_at->timestamp }};
-  let allocatedHours = {{ $activeTimer->allocated_hours ?? 0 }};
-  let durationSeconds = Math.round(allocatedHours * 3600);
-  let endTime = startTime + durationSeconds;
-  isRunning = true;
-
-  function tick() {
-    if (!isRunning) return;
-    let now = Math.floor(Date.now() / 1000);
-    let remaining = endTime - now;
-    
-    if (remaining <= 0) {
-      remaining = 0;
-      isRunning = false;
-      document.getElementById('timer-badge').innerHTML = '<span style="color:var(--danger)">● Time Up</span>';
-      document.getElementById('timer-display').classList.remove('running');
-    }
-
-    let h = Math.floor(remaining / 3600);
-    let m = Math.floor((remaining % 3600) / 60);
-    let s = remaining % 60;
-    
-    document.getElementById('timer-display').textContent = 
-      String(h).padStart(2, '0') + ':' + 
-      String(m).padStart(2, '0') + ':' + 
-      String(s).padStart(2, '0');
-  }
-  
-  setInterval(tick, 1000);
-  tick();
-@endif
+let hasPulse  = {{ $activePulse ? 'true' : 'false' }};
+let timeOffset = 0;
 
 function previewImage(input) {
   const preview = document.getElementById('preview');
@@ -205,31 +208,135 @@ function pollTimer() {
   fetch('{{ route("employee.timer.status") }}')
     .then(r => r.json())
     .then(data => {
-      if (data.is_running !== isRunning) {
+      // Sync time offset
+      const serverNow = Math.floor(new Date(data.server_time).getTime() / 1000);
+      timeOffset = Math.floor(Date.now() / 1000) - serverNow;
+
+      if (data.has_active_timer !== isRunning || data.has_active_pulse !== hasPulse) {
         location.reload();
       }
     }).catch(() => {});
 }
-setInterval(pollTimer, 30000);
+setInterval(pollTimer, 10000); 
+
+
+function pauseTimer(){
+  const btn = document.getElementById('btn-pause');
+  if(btn) btn.classList.add('loading');
+  fetch('{{ route("employee.timer.pause") }}', {
+    method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}
+  }).then(r=>r.json()).then(d=>{
+    if(d.success){ 
+      Toast.fire({ icon: 'success', title: 'Timer paused' }).then(() => location.reload());
+    } else { if(btn) btn.classList.remove('loading'); }
+  }).catch(e=>{ console.error(e); if(btn) btn.classList.remove('loading'); });
+}
+
+function resumeTimer(){
+  const btn = document.getElementById('btn-resume');
+  if(btn) btn.classList.add('loading');
+  fetch('{{ route("employee.timer.resume") }}', {
+    method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}
+  }).then(r=>r.json()).then(d=>{
+    if(d.success){ 
+      Toast.fire({ icon: 'success', title: 'Timer resumed' }).then(() => location.reload());
+    } else { if(btn) btn.classList.remove('loading'); }
+  }).catch(e=>{ console.error(e); if(btn) btn.classList.remove('loading'); });
+}
+
+function requestStop(){
+  Swal.fire({
+    title: 'Request to Stop?',
+    text: 'This will notify your manager that you want to end your shift.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#FF4F6A',
+    cancelButtonColor: '#64748B',
+    confirmButtonText: 'Yes, Request Stop',
+    background: '#1A2235', color: '#E2E8F0'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const btn = document.getElementById('btn-request-stop');
+      if(btn) btn.classList.add('loading');
+      fetch('{{ route("employee.timer.request-stop") }}', {
+        method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}
+      }).then(r=>r.json()).then(d=>{
+        if(d.success){ 
+          Toast.fire({ icon: 'success', title: 'Request sent' }).then(() => location.reload());
+        } else { if(btn) btn.classList.remove('loading'); }
+      }).catch(e=>{ console.error(e); if(btn) btn.classList.remove('loading'); });
+    }
+  });
+}
 
 function startTimer(){
+  const btn = document.getElementById('btn-start');
+  if(btn) btn.classList.add('loading');
   fetch('{{ route("employee.timer.start") }}', {
     method:'POST', headers:{'X-CSRF-TOKEN':window.csrfToken,'Content-Type':'application/json'}
   }).then(r=>r.json()).then(d=>{
-    if(d.success){ location.reload(); }
-    else { alert(d.error); }
-  });
+    if(d.success){ Toast.fire({ icon: 'success', title: 'Timer started' }).then(() => location.reload()); }
+    else { 
+      if(btn) btn.classList.remove('loading');
+      Swal.fire({ icon:'error', title:'Error', text:d.error, background: '#1A2235', color: '#E2E8F0' }); 
+    }
+  }).catch(e=>{ if(btn) btn.classList.remove('loading'); });
 }
 
 function stopTimer(){
-  const btn = document.getElementById('btn-stop');
-  btn.disabled = true; btn.textContent = 'Stopping…';
   fetch('{{ route("employee.timer.stop") }}', {
-    method:'POST', headers:{'X-CSRF-TOKEN':window.csrfToken,'Content-Type':'application/json'}
+    method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}
   }).then(r=>r.json()).then(d=>{
     if(d.success){ location.reload(); }
-    else { alert(d.error); btn.disabled=false; }
-  });
+  }).catch(e=>console.error(e));
 }
+
+
+
+
+
+@if($activeTimer)
+  let startTime = {{ $activeTimer->started_at->timestamp }};
+  let allocatedHours = {{ $activeTimer->allocated_hours ?? 0 }};
+  let spentSec = {{ $spentSec ?? 0 }};
+  let totalDuration = Math.round(allocatedHours * 3600);
+  let remainingOnStart = totalDuration - spentSec;
+  let endTime = startTime + remainingOnStart;
+  isRunning = true;
+
+
+  // Initial sync
+  timeOffset = Math.floor(Date.now() / 1000) - {{ now()->timestamp }};
+
+  function tick() {
+    if (!isRunning) return;
+    let now = Math.floor(Date.now() / 1000) - timeOffset;
+    let remaining = endTime - now;
+    
+    if (remaining <= 0) {
+      remaining = 0;
+      isRunning = false;
+      document.getElementById('timer-badge').innerHTML = '<span class="pulse-indicator" style="background:var(--danger)">Time Up</span>';
+      document.getElementById('timer-display').classList.remove('running');
+      document.getElementById('timer-display').textContent = '00:00:00';
+      
+      // Auto-stop!
+      stopTimer();
+    } else {
+      let h = Math.floor(remaining / 3600);
+      let m = Math.floor((remaining % 3600) / 60);
+      let s = remaining % 60;
+      
+      document.getElementById('timer-display').textContent = 
+        String(h).padStart(2, '0') + ':' + 
+        String(m).padStart(2, '0') + ':' + 
+        String(s).padStart(2, '0');
+    }
+  }
+  
+  setInterval(tick, 1000);
+  tick();
+@endif
+
 </script>
 @endpush

@@ -9,7 +9,9 @@
 <link rel="icon" type="image/png" href="/loops-icon.png">
 <link rel="apple-touch-icon" href="/icon-512.png">
 <title>@yield('title','WFH Pulse') — WFH Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @vite(['resources/css/app.css','resources/js/app.js'])
+
 </head>
 <body>
 <div class="app-layout">
@@ -18,9 +20,13 @@
 
   {{-- ── Sidebar ──────────────────────────────── --}}
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
+    <div class="sidebar-brand" style="display:flex;align-items:center;justify-content:space-between">
       <img src="/LoopsWhite.png" alt="Loops Logo" style="height:36px;width:auto">
+      <button class="mobile-menu-toggle" onclick="toggleSidebar()" style="display:none;padding:4px;color:white">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
+
 
     <nav class="sidebar-nav">
       @php $role = auth()->user()->role; @endphp
@@ -46,12 +52,13 @@
         <a href="{{ route('manager.pulses') }}" class="nav-item {{ request()->routeIs('manager.pulses') ? 'active' : '' }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           Pulse Requests
-          @php $pending = auth()->user()->managedPulses()->where('status','pending')->count(); @endphp
+          @php $pending = \App\Models\Pulse::where('status','pending')->count(); @endphp
           @if($pending > 0)<span class="badge badge-danger" style="margin-left:auto">{{ $pending }}</span>@endif
+
         </a>
         <a href="{{ route('manager.team') }}" class="nav-item {{ request()->routeIs('manager.team') ? 'active' : '' }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          My Team
+          Team
         </a>
         <a href="{{ route('manager.reports') }}" class="nav-item {{ request()->routeIs('manager.reports') ? 'active' : '' }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -109,26 +116,37 @@
     </header>
 
     <main class="page-body">
-      @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-      @endif
-      @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-      @endif
-      @if($errors->any())
-        <div class="alert alert-danger">
-          @foreach($errors->all() as $e)<div>• {{ $e }}</div>@endforeach
-        </div>
-      @endif
-
       @yield('content')
     </main>
   </div>
 </div>
 
 <script>
+// SweetAlert Toast Config
+const Toast = Swal.mixin({
+  toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true,
+  background: '#1A2235', color: '#E2E8F0',
+  didOpen: (toast) => { toast.onmouseenter = Swal.stopTimer; toast.onmouseleave = Swal.resumeTimer; }
+});
+
+// Flash Messages
+@if(session('success'))
+  Toast.fire({ icon: 'success', title: '{{ session('success') }}' });
+@endif
+@if(session('error'))
+  Toast.fire({ icon: 'error', title: '{{ session('error') }}' });
+@endif
+@if($errors->any())
+  Swal.fire({ 
+    icon: 'error', title: 'Validation Error', 
+    html: '@foreach($errors->all() as $e)<div>• {{ $e }}</div>@endforeach',
+    background: '#1A2235', color: '#E2E8F0', confirmButtonColor: '#4F7EFF'
+  });
+@endif
+
 // CSRF for AJAX
 window.csrfToken = '{{ csrf_token() }}';
+
 
 // Notification polling
 function pollNotifications() {

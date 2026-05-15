@@ -25,11 +25,13 @@ class EmployeeController extends Controller
             ->get();
 
         $pendingPulse = $user->pulses()->where('status', 'pending')->latest()->first();
+        $spentSec     = $activePulse ? $activePulse->getSpentSeconds() : 0;
 
         return view('employee.dashboard', compact(
             'user', 'activePulse', 'activeTimer',
-            'todaySec', 'weekSec', 'recentLogs', 'pendingPulse'
+            'todaySec', 'weekSec', 'recentLogs', 'pendingPulse', 'spentSec'
         ));
+
     }
 
     public function history(Request $request)

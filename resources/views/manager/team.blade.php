@@ -4,13 +4,13 @@
 
 @section('content')
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-  <div class="card-title" style="margin:0">Team Overview</div>
-  <button class="btn btn-primary" onclick="document.getElementById('add-emp-card').style.display='block';this.style.display='none'">+ Add New Employee</button>
+  <div class="card-title" style="margin:0">System Users Overview</div>
+  <button class="btn btn-primary" onclick="document.getElementById('add-emp-card').style.display='block';this.style.display='none'">+ Add New User</button>
 </div>
 
 <div class="card" id="add-emp-card" style="display:{{ $errors->any() ? 'block' : 'none' }};margin-bottom:24px;border:1px solid var(--primary)">
   <div class="card-header">
-    <div class="card-title">Quick Add Employee</div>
+    <div class="card-title">Quick Add User</div>
     <button class="modal-close" onclick="document.getElementById('add-emp-card').style.display='none';document.querySelector('.btn-primary').style.display='flex'">×</button>
   </div>
   <form method="POST" action="{{ route('manager.employees.store') }}" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;align-items:flex-end">
@@ -30,10 +30,19 @@
       <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" required placeholder="Min 8 chars">
       @error('password')<div style="color:var(--danger);font-size:11px;margin-top:4px">{{ $message }}</div>@enderror
     </div>
+    <div class="form-group" style="margin:0">
+      <label>Role</label>
+      <select name="role" class="form-control">
+        <option value="employee">Employee</option>
+        <option value="manager">Manager</option>
+      </select>
+    </div>
+
     <div style="display:flex;gap:8px">
       <button type="submit" class="btn btn-primary">Create</button>
       <button type="button" class="btn btn-outline" onclick="document.getElementById('add-emp-card').style.display='none';document.querySelector('.btn-primary').style.display='flex'">Cancel</button>
     </div>
+
   </form>
 </div>
 
@@ -51,7 +60,7 @@
 <div class="card">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Employee</th><th>Dept</th><th>Total Hours</th><th>Sessions</th><th>Last Active</th><th>Status</th></tr></thead>
+      <thead><tr><th>User</th><th>Role</th><th>Total Hours</th><th>Sessions</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         @forelse($employees as $emp)
         @php
@@ -63,10 +72,9 @@
             <div style="font-weight:600">{{ $emp->name }}</div>
             <div style="font-size:12px;color:var(--muted)">{{ $emp->email }}</div>
           </td>
-          <td style="color:var(--muted)">{{ $emp->department ?? '—' }}</td>
+          <td><span class="badge {{ $emp->role === 'manager' ? 'badge-warning' : 'badge-primary' }}">{{ ucfirst($emp->role) }}</span></td>
           <td>{{ gmdate('H\h i\m', $totalSec) }}</td>
           <td>{{ $emp->timeLogs->count() }}</td>
-          <td style="color:var(--muted)">{{ $lastLog?->started_at?->diffForHumans() ?? 'Never' }}</td>
           <td>
             @if($emp->getActiveTimer())
               <span class="pulse-indicator running" style="margin:0">● Active</span>
@@ -76,6 +84,20 @@
               <span class="badge badge-danger">Deactivated</span>
             @endif
           </td>
+          <td>
+            <a href="{{ route('manager.users.edit', $emp->id) }}" class="btn btn-outline btn-sm" style="padding:4px 8px;margin-right:4px" title="Edit User">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </a>
+            <form method="POST" action="{{ route('manager.users.destroy', $emp->id) }}" onsubmit="return confirm('Delete this user from the system?')" style="display:inline">
+              @csrf
+              @method('DELETE')
+              <button class="btn btn-danger btn-sm" style="padding:4px 8px" title="Delete User">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </form>
+          </td>
+
+
         </tr>
         @empty
           <tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><h3>No team members yet</h3></div></td></tr>

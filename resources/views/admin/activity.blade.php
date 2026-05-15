@@ -28,7 +28,9 @@
           <th>Session</th>
           <th>Duration</th>
           <th>Allocated</th>
+          <th>Pulse Description</th>
           <th>Pulse Proof</th>
+          <th>Approved By</th>
         </tr>
       </thead>
       <tbody>
@@ -50,6 +52,7 @@
             @endif
           </td>
           <td style="color:var(--muted)">{{ $log->allocated_hours ? $log->allocated_hours . 'h' : '—' }}</td>
+          <td style="font-size:12px;color:var(--muted)">{{ $log->pulse?->description ?? '—' }}</td>
           <td>
             @if($log->pulse && $log->pulse->image_path)
               <a href="{{ asset('storage/' . $log->pulse->image_path) }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px">View Image</a>
@@ -57,6 +60,8 @@
               —
             @endif
           </td>
+          <td style="font-weight:500">{{ $log->pulse?->approver->name ?? '—' }}</td>
+
         </tr>
         @empty
           <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">No activity logs found.</td></tr>

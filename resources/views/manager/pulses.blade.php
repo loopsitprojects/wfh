@@ -26,7 +26,7 @@
 <div class="card">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Photo</th><th>Employee</th><th>Description</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Photo</th><th>Employee</th><th>Description</th><th>Status</th><th>Submitted</th><th>Approver</th><th>Actions</th></tr></thead>
       <tbody>
         @forelse($pulses as $pulse)
         <tr>
@@ -36,15 +36,25 @@
           <td style="color:var(--muted);max-width:200px">{{ Str::limit($pulse->description,60,'…') ?? '—' }}</td>
           <td><span class="badge {{ $pulse->statusBadgeClass() }}">{{ ucfirst($pulse->status) }}</span></td>
           <td style="color:var(--muted)">{{ $pulse->created_at->format('M d, Y h:i A') }}</td>
+          <td><span style="font-weight:500">{{ $pulse->approver->name ?? '—' }}</span></td>
           <td>
             @if($pulse->isPending())
-              <div style="display:flex;flex-direction:column;gap:6px">
-                <form method="POST" action="{{ route('manager.pulses.approve',$pulse->id) }}" style="display:flex;gap:4px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <form method="POST" action="{{ route('manager.pulses.approve',$pulse->id) }}" style="display:flex;gap:8px;align-items:center" onsubmit="this.querySelector('button').classList.add('loading')">
                   @csrf
-                  <input type="number" name="duration_hours" step="0.5" min="0.5" max="24" value="1" class="form-control" style="width:60px;padding:4px;font-size:11px">
-                  <button class="btn btn-success btn-sm">Approve</button>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div style="display:flex;align-items:center;gap:3px">
+                      <input type="number" name="hours" min="0" max="24" value="1" class="form-control" style="width:50px;padding:6px;font-size:12px;font-weight:600;text-align:center">
+                      <span style="font-size:11px;color:var(--text);font-weight:500">h</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:3px">
+                      <input type="number" name="minutes" min="0" max="59" value="0" class="form-control" style="width:50px;padding:6px;font-size:12px;font-weight:600;text-align:center">
+                      <span style="font-size:11px;color:var(--text);font-weight:500">m</span>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-success btn-sm" style="padding:6px 12px;font-weight:600">Approve</button>
                 </form>
-                <button class="btn btn-danger btn-sm" onclick="document.getElementById('r-{{ $pulse->id }}').classList.add('open')">Reject</button>
+                <button class="btn btn-danger btn-sm" style="padding:6px 12px;font-weight:600" onclick="this.classList.add('loading'); document.getElementById('r-{{ $pulse->id }}').classList.add('open'); this.classList.remove('loading')">Reject</button>
               </div>
             @elseif($pulse->isRejected() && $pulse->rejection_reason)
               <span style="font-size:12px;color:var(--muted)" title="{{ $pulse->rejection_reason }}">Reason: {{ Str::limit($pulse->rejection_reason,30) }}</span>
@@ -52,9 +62,8 @@
               <span style="color:var(--muted)">—</span>
             @endif
           </td>
-        </tr>
 
-        {{-- Image Modal --}}
+        </tr>        {{-- Image Modal --}}
         <div class="modal-overlay" id="img-{{ $pulse->id }}" onclick="this.classList.remove('open')">
           <img src="{{ Storage::url($pulse->image_path) }}" style="max-width:90vw;max-height:90vh;border-radius:12px" onclick="event.stopPropagation()">
         </div>
