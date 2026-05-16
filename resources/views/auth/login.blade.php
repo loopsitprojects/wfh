@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" type="image/png" href="/loops-icon.png">
+<link rel="icon" type="image/png" href="{{ asset('loops-icon.png') }}">
 <title>Login — WFH Pulse Tracker</title>
 @vite(['resources/css/app.css'])
 </head>
@@ -11,7 +11,7 @@
 <div class="login-page">
   <div class="login-card">
     <div class="login-logo">
-      <img src="/LoopsWhite.png" alt="Loops Logo" style="height:60px;width:auto;margin-bottom:20px">
+      <img src="{{ asset('LoopsWhite.png') }}" alt="Loops Logo" style="height:60px;width:auto;margin-bottom:20px">
       <div class="login-title">WFH Pulse Tracker</div>
       <div class="login-sub">Sign in to your workspace</div>
     </div>
@@ -20,7 +20,7 @@
       <div class="alert alert-danger">{{ $errors->first() }}</div>
     @endif
 
-    <form method="POST" action="/login">
+    <form method="POST" action="{{ route('login') }}">
       @csrf
       <div class="form-group">
         <label>Username</label>

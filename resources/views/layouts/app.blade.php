@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="theme-color" content="#4F7EFF">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/png" href="/loops-icon.png">
-<link rel="apple-touch-icon" href="/icon-512.png">
+<link rel="manifest" href="{{ asset('manifest.json') }}">
+<link rel="icon" type="image/png" href="{{ asset('loops-icon.png') }}">
+<link rel="apple-touch-icon" href="{{ asset('icon-512.png') }}">
 <title>@yield('title','WFH Pulse') — WFH Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @vite(['resources/css/app.css','resources/js/app.js'])
@@ -21,8 +21,8 @@
   {{-- ── Sidebar ──────────────────────────────── --}}
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand" style="display:flex;align-items:center;justify-content:space-between">
-      <a href="/">
-        <img src="/LoopsWhite.png" alt="Loops Logo" style="height:36px;width:auto">
+      <a href="{{ url('/') }}">
+        <img src="{{ asset('LoopsWhite.png') }}" alt="Loops Logo" style="height:36px;width:auto">
       </a>
       <button class="mobile-menu-toggle" onclick="toggleSidebar()" style="display:none;padding:4px;color:white">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -152,7 +152,7 @@ window.csrfToken = '{{ csrf_token() }}';
 
 // Notification polling
 function pollNotifications() {
-  fetch('/notifications/count', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+  fetch('{{ url('/notifications/count') }}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
       const badge = document.getElementById('notif-count');
@@ -175,7 +175,7 @@ setTimeout(() => { document.querySelectorAll('.alert').forEach(a => a.style.opac
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('{{ asset('sw.js') }}').catch(() => {});
   });
 }
 </script>
