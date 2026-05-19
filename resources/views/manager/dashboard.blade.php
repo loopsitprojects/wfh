@@ -44,7 +44,7 @@
 
     @forelse($pendingPulses as $pulse)
     <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--card-hover);border-radius:var(--radius-sm);margin-bottom:10px">
-      <img src="{{ Storage::url($pulse->image_path) }}" class="pulse-thumb" alt="Work photo"
+      <img src="{{ asset($pulse->image_path) }}" class="pulse-thumb" alt="Work photo"
            onclick="document.getElementById('img-modal-{{ $pulse->id }}').classList.add('open')">
       <div style="flex:1">
         <div style="font-weight:600">{{ $pulse->employee->name }}</div>
@@ -75,7 +75,7 @@
 
     </div>    {{-- Image Modal --}}
     <div class="modal-overlay" id="img-modal-{{ $pulse->id }}" onclick="this.classList.remove('open')">
-      <img src="{{ Storage::url($pulse->image_path) }}" style="max-width:90vw;max-height:90vh;border-radius:12px" onclick="event.stopPropagation()">
+      <img src="{{ asset($pulse->image_path) }}" style="max-width:90vw;max-height:90vh;border-radius:12px" onclick="event.stopPropagation()">
     </div>
 
     {{-- Reject Modal --}}

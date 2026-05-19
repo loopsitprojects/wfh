@@ -30,7 +30,7 @@
       <tbody>
         @forelse($pulses as $pulse)
         <tr>
-          <td><img src="{{ Storage::url($pulse->image_path) }}" class="pulse-thumb" alt=""
+          <td><img src="{{ asset($pulse->image_path) }}" class="pulse-thumb" alt=""
                    onclick="document.getElementById('img-{{ $pulse->id }}').classList.add('open')"></td>
           <td style="font-weight:500">{{ $pulse->employee->name }}</td>
           <td style="color:var(--muted);max-width:200px">{{ Str::limit($pulse->description,60,'…') ?? '—' }}</td>
@@ -65,7 +65,7 @@
 
         </tr>        {{-- Image Modal --}}
         <div class="modal-overlay" id="img-{{ $pulse->id }}" onclick="this.classList.remove('open')">
-          <img src="{{ Storage::url($pulse->image_path) }}" style="max-width:90vw;max-height:90vh;border-radius:12px" onclick="event.stopPropagation()">
+          <img src="{{ asset($pulse->image_path) }}" style="max-width:90vw;max-height:90vh;border-radius:12px" onclick="event.stopPropagation()">
         </div>
 
         {{-- Reject Modal --}}

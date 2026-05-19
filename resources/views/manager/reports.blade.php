@@ -79,7 +79,7 @@
         </td>
         <td>
           @if($d['image'])
-            <a href="{{ Storage::url($d['image']) }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px">View Photo</a>
+            <a href="{{ asset($d['image']) }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px">View Photo</a>
           @else
             <span style="color:var(--muted)">—</span>
           @endif
