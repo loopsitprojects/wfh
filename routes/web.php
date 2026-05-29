@@ -50,6 +50,7 @@ Route::middleware(['auth', 'role:manager,admin'])
         Route::get('/pulses',    [PulseController::class, 'index'])->name('pulses');
         Route::post('/pulses/{pulse}/approve', [PulseController::class, 'approve'])->name('pulses.approve');
         Route::post('/pulses/{pulse}/reject',  [PulseController::class, 'reject'])->name('pulses.reject');
+        Route::delete('/pulses/{pulse}',       [PulseController::class, 'destroy'])->name('pulses.destroy');
         Route::get('/team',     [ManagerController::class, 'team'])->name('team');
         Route::get('/reports',  [ReportController::class, 'index'])->name('reports');
         Route::post('/reports/generate',    [ReportController::class, 'generate'])->name('reports.generate');
@@ -82,6 +83,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::delete('/users/{user}',    [AdminController::class, 'destroyUser'])->name('users.destroy');
         Route::patch('/users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('users.toggle');
         Route::get('/activity',           [AdminController::class, 'activityLogs'])->name('activity');
+        Route::delete('/activity/clear',  [AdminController::class, 'clearActivityLogs'])->name('activity.clear');
         Route::get('/activity/export/csv', [AdminController::class, 'exportActivityCsv'])->name('activity.csv');
         Route::get('/activity/export/pdf', [AdminController::class, 'exportActivityPdf'])->name('activity.pdf');
     });
@@ -91,5 +93,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications',             [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/count',       [NotificationController::class, 'count'])->name('notifications.count');
     Route::post('/notifications/read-all',   [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
+    Route::delete('/notifications/clear-all',[NotificationController::class, 'clearAll'])->name('notifications.clearAll');
     Route::get('/notifications/{id}/read',   [NotificationController::class, 'markRead'])->name('notifications.read');
 });

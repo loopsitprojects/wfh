@@ -150,6 +150,12 @@ class AdminController extends Controller
         return view('admin.activity', compact('logs'));
     }
 
+    public function clearActivityLogs()
+    {
+        TimeLog::query()->delete();
+        return back()->with('success', 'All activity history has been cleared.');
+    }
+
     public function exportActivityCsv(Request $request)
     {
         $query = TimeLog::with(['employee'])->latest();

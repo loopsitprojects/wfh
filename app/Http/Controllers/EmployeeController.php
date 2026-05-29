@@ -20,6 +20,9 @@ class EmployeeController extends Controller
         $recentLogs = $user->timeLogs()
             ->with('pulse')
             ->whereNotNull('ended_at')
+            ->where(function($q) {
+                $q->where('notes', '!=', 'Paused by user')->orWhereNull('notes');
+            })
             ->latest('started_at')
             ->take(5)
             ->get();

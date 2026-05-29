@@ -105,13 +105,7 @@ class PulseController extends Controller
         ]);
 
 
-        // Auto-start the timer (create TimeLog)
-        \App\Models\TimeLog::create([
-            'employee_id'     => $pulse->employee_id,
-            'pulse_id'        => $pulse->id,
-            'allocated_hours' => $durationHours,
-            'started_at'      => now(),
-        ]);
+
 
 
         try {
@@ -156,6 +150,14 @@ class PulseController extends Controller
         if (!auth()->user()->isManager() && !auth()->user()->isAdmin()) {
             abort(403);
         }
+    }
+
+    /** Manager: delete a pulse */
+    public function destroy(Pulse $pulse)
+    {
+        $this->authorizeManager($pulse);
+        $pulse->delete();
+        return back()->with('success', 'Pulse request deleted successfully.');
     }
 
 }

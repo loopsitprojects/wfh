@@ -29,8 +29,15 @@ class PulseDecisionNotification extends Notification implements ShouldQueue
             ->greeting('Hello ' . $notifiable->name . ',');
 
         if ($approved) {
+            $hours = floor($this->pulse->duration_hours);
+            $minutes = round(($this->pulse->duration_hours - $hours) * 60);
+            $timeString = '';
+            if ($hours > 0) $timeString .= $hours . ' hr ';
+            if ($minutes > 0 || $hours == 0) $timeString .= $minutes . ' min';
+            $timeString = trim($timeString);
+
             $message->line('Great news! Your pulse request has been approved.')
-                   ->line('Allocated time: ' . $this->pulse->duration_hours . ' hours.')
+                   ->line('Allocated time: ' . $timeString . '.')
                    ->action('Start Timer', route('employee.dashboard'));
         } else {
             $message->line('Unfortunately, your pulse request was rejected.')
@@ -39,7 +46,7 @@ class PulseDecisionNotification extends Notification implements ShouldQueue
         }
 
         return $message->line('Stay productive!')
-                       ->salutation('Regards, The ' . config('app.name') . ' Team');
+                       ->salutation('Loops Team');
     }
 
 

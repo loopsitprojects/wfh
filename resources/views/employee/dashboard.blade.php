@@ -5,6 +5,24 @@
 @section('content')
 @php
   function fmtSec($s){ $s=abs($s); $h=intdiv($s,3600);$m=intdiv($s%3600,60);return sprintf('%dh %02dm',$h,$m); }
+  function fmtHours($hours) {
+      $totalMinutes = round($hours * 60);
+      $h = floor($totalMinutes / 60);
+      $m = $totalMinutes % 60;
+      if ($h > 0 && $m > 0) return "{$h}h {$m}m";
+      if ($h > 0) return "{$h}h";
+      return "{$m}m";
+  }
+  
+  $displayTime = "00:00:00";
+  if ($activePulse && $activePulse->is_paused) {
+     $totalAllocated = round($activePulse->duration_hours * 3600);
+     $remaining = max(0, $totalAllocated - ($spentSec ?? 0));
+     $h = floor($remaining / 3600);
+     $m = floor(($remaining % 3600) / 60);
+     $s = $remaining % 60;
+     $displayTime = sprintf("%02d:%02d:%02d", $h, $m, $s);
+  }
 @endphp
 
 {{-- Stats --}}
@@ -40,8 +58,8 @@
     <div class="stat-icon" style="background:rgba(79,126,255,.12)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     </div>
-    <div class="stat-value">{{ auth()->user()->timeLogs()->whereNotNull('ended_at')->count() }}</div>
-    <div class="stat-label">Total Sessions</div>
+    <div class="stat-value">{{ auth()->user()->timeLogs()->whereMonth('started_at', now()->month)->whereYear('started_at', now()->year)->whereNotNull('ended_at')->count() }}</div>
+    <div class="stat-label">Monthly Sessions</div>
   </div>
 </div>
 
@@ -56,12 +74,12 @@
       @endif
     </div>
     <div class="timer-display {{ $activeTimer ? 'running' : '' }}" id="timer-display">
-      00:00:00
+      {{ $displayTime }}
     </div>
     <div class="timer-status" id="timer-status">
       @if($activeTimer) 
         Started at {{ $activeTimer->started_at->format('h:i A') }} 
-        @if($activeTimer->allocated_hours) (Allocated: {{ $activeTimer->allocated_hours }}h) @endif
+        @if($activeTimer->allocated_hours) (Allocated: {{ fmtHours($activeTimer->allocated_hours) }}) @endif
       @elseif($activePulse) Pulse approved!
       @elseif($pendingPulse) Awaiting manager approval…
       @else Request a pulse to start timer
@@ -71,15 +89,12 @@
       @if($activeTimer)
         <button class="btn btn-warning btn-lg" id="btn-pause" onclick="pauseTimer()" style="background:#f59e0b;border-color:#f59e0b">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-          Pause Timer
+          Pause (Restroom/Break)
         </button>
-        @if($activePulse && !$activePulse->stop_requested)
-          <button class="btn btn-outline btn-lg" id="btn-request-stop" onclick="requestStop()" style="border-color:var(--danger);color:var(--danger)">
-            Request to Stop
-          </button>
-        @elseif($activePulse && $activePulse->stop_requested)
-          <span class="badge badge-muted" style="padding:12px 20px;font-size:14px">Stop Requested...</span>
-        @endif
+        <button class="btn btn-outline btn-lg" id="btn-stop" onclick="emergencyStop()" style="border-color:var(--danger);color:var(--danger)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+          Emergency Stop
+        </button>
       @elseif($activePulse && $activePulse->is_paused)
         <button class="btn btn-success btn-lg" id="btn-resume" onclick="resumeTimer()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -153,6 +168,7 @@
           <th>Time</th>
           <th>Duration</th>
           <th>Status</th>
+          <th>Reason</th>
         </tr>
       </thead>
       <tbody>
@@ -163,17 +179,33 @@
             <div style="font-size:11px;color:var(--muted)">{{ $log->started_at->format('d M') }}</div>
           </td>
           <td style="font-family:'JetBrains Mono',monospace;font-size:13px">
-            @if($log->duration_seconds)
-              {{ floor($log->duration_seconds/3600) }}h {{ floor(($log->duration_seconds%3600)/60) }}m
+            @php
+              $totalSec = $log->pulse ? $log->pulse->getSpentSeconds() : $log->duration_seconds;
+            @endphp
+            @if($totalSec !== null && $log->ended_at)
+              {{ floor($totalSec/3600) }}h {{ floor(($totalSec%3600)/60) }}m
             @else
               <span style="color:var(--success)">Running...</span>
             @endif
           </td>
           <td>
             @if($log->ended_at)
-              <span class="badge badge-muted">Completed</span>
+              @if($log->notes && Str::startsWith($log->notes, 'Emergency Stop:'))
+                <span class="badge badge-danger">Stopped</span>
+              @else
+                <span class="badge badge-success" style="background-color: var(--success); color: #fff;">Completed</span>
+              @endif
             @else
-              <span class="badge badge-success">Active</span>
+              <span class="badge badge-primary">Active</span>
+            @endif
+          </td>
+          <td style="font-size:12px;color:var(--muted);max-width:200px">
+            @if($log->notes && Str::startsWith($log->notes, 'Emergency Stop:'))
+              {{ str_replace('Emergency Stop: ', '', $log->notes) }}
+            @elseif($log->notes && Str::startsWith($log->notes, 'Timer auto-stopped'))
+              Time Allocation Reached
+            @else
+              —
             @endif
           </td>
         </tr>
@@ -244,26 +276,35 @@ function resumeTimer(){
   }).catch(e=>{ console.error(e); if(btn) btn.classList.remove('loading'); });
 }
 
-function requestStop(){
+function emergencyStop(){
   Swal.fire({
-    title: 'Request to Stop?',
-    text: 'This will notify your manager that you want to end your shift.',
-    icon: 'question',
+    title: 'Emergency Stop Timer',
+    text: 'Please provide a reason for stopping the timer early:',
+    input: 'textarea',
+    inputPlaceholder: 'Reason...',
     showCancelButton: true,
     confirmButtonColor: '#FF4F6A',
     cancelButtonColor: '#64748B',
-    confirmButtonText: 'Yes, Request Stop',
-    background: '#1A2235', color: '#E2E8F0'
+    confirmButtonText: 'Stop Timer',
+    background: '#1A2235', color: '#E2E8F0',
+    preConfirm: (reason) => {
+      if (!reason) Swal.showValidationMessage('A reason is required');
+      return reason;
+    }
   }).then((result) => {
     if (result.isConfirmed) {
-      const btn = document.getElementById('btn-request-stop');
+      const btn = document.getElementById('btn-stop');
       if(btn) btn.classList.add('loading');
-      fetch('{{ route("employee.timer.request-stop") }}', {
-        method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}
+      fetch('{{ route("employee.timer.stop") }}', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: result.value })
       }).then(r=>r.json()).then(d=>{
-        if(d.success){ 
-          Toast.fire({ icon: 'success', title: 'Request sent' }).then(() => location.reload());
-        } else { if(btn) btn.classList.remove('loading'); }
+        if(d.success){ Toast.fire({ icon: 'success', title: 'Timer stopped' }).then(() => location.reload()); }
+        else { if(btn) btn.classList.remove('loading'); }
       }).catch(e=>{ console.error(e); if(btn) btn.classList.remove('loading'); });
     }
   });
@@ -285,7 +326,11 @@ function startTimer(){
 
 function stopTimer(){
   fetch('{{ route("employee.timer.stop") }}', {
-    method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}
+    method:'POST', headers:{
+      'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ reason: 'Auto-stopped (Allocated time finished)' })
   }).then(r=>r.json()).then(d=>{
     if(d.success){ location.reload(); }
   }).catch(e=>console.error(e));

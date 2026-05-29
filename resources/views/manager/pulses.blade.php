@@ -33,7 +33,9 @@
           <td><img src="{{ asset($pulse->image_path) }}" class="pulse-thumb" alt=""
                    onclick="document.getElementById('img-{{ $pulse->id }}').classList.add('open')"></td>
           <td style="font-weight:500">{{ $pulse->employee->name }}</td>
-          <td style="color:var(--muted);max-width:200px">{{ Str::limit($pulse->description,60,'…') ?? '—' }}</td>
+          <td style="color:var(--muted);max-width:200px;cursor:pointer" onclick="document.getElementById('desc-{{ $pulse->id }}').classList.add('open')" title="Click to read full description">
+            {{ Str::limit($pulse->description,60,'…') ?? '—' }}
+          </td>
           <td><span class="badge {{ $pulse->statusBadgeClass() }}">{{ ucfirst($pulse->status) }}</span></td>
           <td style="color:var(--muted)">{{ $pulse->created_at->format('M d, Y h:i A') }}</td>
           <td><span style="font-weight:500">{{ $pulse->approver->name ?? '—' }}</span></td>
@@ -63,9 +65,24 @@
             @endif
           </td>
 
-        </tr>        {{-- Image Modal --}}
+        </tr>
+        {{-- Image Modal --}}
         <div class="modal-overlay" id="img-{{ $pulse->id }}" onclick="this.classList.remove('open')">
           <img src="{{ asset($pulse->image_path) }}" style="max-width:90vw;max-height:90vh;border-radius:12px" onclick="event.stopPropagation()">
+        </div>
+
+        {{-- Description Modal --}}
+        <div class="modal-overlay" id="desc-{{ $pulse->id }}">
+          <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+              <span class="modal-title">Pulse Description</span>
+              <button class="modal-close" onclick="document.getElementById('desc-{{ $pulse->id }}').classList.remove('open')">×</button>
+            </div>
+            <div style="padding: 20px; white-space: pre-wrap; line-height: 1.5; color: var(--text);">{{ $pulse->description ?: 'No description provided.' }}</div>
+            <div style="display:flex; justify-content:flex-end; padding: 0 20px 20px;">
+              <button class="btn btn-outline" onclick="document.getElementById('desc-{{ $pulse->id }}').classList.remove('open')">Close</button>
+            </div>
+          </div>
         </div>
 
         {{-- Reject Modal --}}

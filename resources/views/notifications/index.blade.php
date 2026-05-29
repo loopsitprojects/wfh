@@ -7,7 +7,10 @@
   <div class="card">
     <div class="card-header">
       <div class="card-title">All Notifications</div>
-      <form method="POST" action="{{ route('notifications.readAll') }}">@csrf<button class="btn btn-outline btn-sm">Mark all read</button></form>
+      <div style="display:flex; gap:8px;">
+        <form method="POST" action="{{ route('notifications.readAll') }}">@csrf<button class="btn btn-outline btn-sm">Mark all read</button></form>
+        <form method="POST" action="{{ route('notifications.clearAll') }}" onsubmit="return confirm('Are you sure you want to clear all notifications?')">@csrf @method('DELETE')<button class="btn btn-danger btn-sm">Clear All</button></form>
+      </div>
     </div>
     @forelse($notifications as $n)
     <a href="{{ route('notifications.read',$n->id) }}"
