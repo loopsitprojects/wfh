@@ -71,7 +71,7 @@
           <div style="font-weight:600">{{ $row['name'] }}</div>
           <div style="font-size:11px;color:var(--muted)">{{ $row['email'] }}</div>
         </td>
-        <td style="font-weight:600;color:var(--primary)">{{ $row['hours'] }} hrs</td>
+        <td style="font-weight:600;color:var(--primary)">{{ $row['hours_formatted'] }}</td>
         <td>{{ $row['pulses'] }}</td>
         <td>{{ $row['sessions'] }}</td>
       </tr>

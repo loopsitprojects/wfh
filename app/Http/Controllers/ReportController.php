@@ -106,11 +106,13 @@ class ReportController extends Controller
 
             $totalSec = $logs->sum('duration_seconds');
             $hours    = round($totalSec / 3600, 2);
+            $hoursFormatted = sprintf('%dh %02dm', intdiv($totalSec, 3600), intdiv($totalSec % 3600, 60));
 
             $rows[] = [
                 'name'     => $emp->name,
                 'email'    => $emp->email,
                 'hours'    => $hours,
+                'hours_formatted' => $hoursFormatted,
                 'pulses'   => $pulseCount,
                 'sessions' => $logs->count(),
             ];
