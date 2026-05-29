@@ -49,8 +49,45 @@
   </div>
 </div>
 
+{{-- Summary Report --}}
+<div class="card" style="margin-bottom:24px">
+  <div class="card-header">
+    <div class="card-title">Summary Report (Total Hours)</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Total Hours</th>
+          <th>Total Tasks</th>
+          <th>Total Sessions</th>
+        </tr>
+      </thead>
+      <tbody>
+      @forelse($rows as $row)
+      <tr>
+        <td>
+          <div style="font-weight:600">{{ $row['name'] }}</div>
+          <div style="font-size:11px;color:var(--muted)">{{ $row['email'] }}</div>
+        </td>
+        <td style="font-weight:600;color:var(--primary)">{{ $row['hours'] }} hrs</td>
+        <td>{{ $row['pulses'] }}</td>
+        <td>{{ $row['sessions'] }}</td>
+      </tr>
+      @empty
+        <tr><td colspan="4"><div class="empty-state" style="padding: 20px">No data found</div></td></tr>
+      @endforelse
+      </tbody>
+    </table>
+  </div>
+</div>
 
+{{-- Detailed Report --}}
 <div class="card">
+  <div class="card-header">
+    <div class="card-title">Detailed Report</div>
+  </div>
   <div class="table-wrap">
     <table>
       <thead>

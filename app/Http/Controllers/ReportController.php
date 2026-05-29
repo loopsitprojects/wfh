@@ -68,8 +68,17 @@ class ReportController extends Controller
 
     private function buildReportData(Request $request): array
     {
-        $dateFrom = $request->date_from ?? now()->startOfMonth()->toDateString();
-        $dateTo   = $request->date_to   ?? now()->toDateString();
+        $now = now();
+        if ($now->day >= 26) {
+            $defaultFrom = $now->copy()->day(26);
+            $defaultTo   = $now->copy()->addMonth()->day(25);
+        } else {
+            $defaultFrom = $now->copy()->subMonth()->day(26);
+            $defaultTo   = $now->copy()->day(25);
+        }
+
+        $dateFrom = $request->date_from ?? $defaultFrom->toDateString();
+        $dateTo   = $request->date_to   ?? $defaultTo->toDateString();
         $search   = $request->search;
 
         $empQuery = User::where('role', 'employee');
