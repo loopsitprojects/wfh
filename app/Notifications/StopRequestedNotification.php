@@ -22,11 +22,11 @@ class StopRequestedNotification extends Notification implements ShouldQueue
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Stop Request: ' . $this->pulse->employee->name)
-            ->greeting('Hello ' . $notifiable->name . ',')
-            ->line($this->pulse->employee->name . ' has requested to stop their active work session.')
-            ->action('Review Dashboard', route('manager.dashboard'))
-            ->salutation('Regards, The ' . config('app.name') . ' Team');
+            ->subject('Stop Session Request from ' . $this->pulse->employee->name)
+            ->view('emails.stop_requested', [
+                'pulse' => $this->pulse,
+                'notifiable' => $notifiable,
+            ]);
     }
 
     public function toDatabase($notifiable): array

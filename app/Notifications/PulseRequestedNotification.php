@@ -22,12 +22,11 @@ class PulseRequestedNotification extends Notification implements ShouldQueue
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('New Pulse Request: ' . $this->pulse->employee->name)
-            ->greeting('Hello ' . $notifiable->name . ',')
-            ->line($this->pulse->employee->name . ' has requested a work pulse.')
-            ->line('Description: ' . $this->pulse->description)
-            ->action('Review Request', route('manager.pulses'))
-            ->salutation('Regards, The ' . config('app.name') . ' Team');
+            ->subject('New WFH Pulse Request from ' . $this->pulse->employee->name)
+            ->view('emails.pulse_requested', [
+                'pulse' => $this->pulse,
+                'notifiable' => $notifiable,
+            ]);
     }
 
 
