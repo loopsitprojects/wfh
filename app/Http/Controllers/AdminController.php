@@ -83,10 +83,8 @@ class AdminController extends Controller
         $data['name']       = $data['username'];
         $data['password']   = bcrypt($data['password']);
         
-        // If it's a manager being created, they don't necessarily need a manager_id
-        // But if we want to keep them under the current manager, we can.
-        // Usually managers are independent.
-        $data['manager_id'] = ($data['role'] === 'manager') ? null : auth()->id();
+        // Managers are not assigned to employees
+        $data['manager_id'] = null;
 
         User::create($data);
 

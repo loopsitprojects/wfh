@@ -33,7 +33,7 @@
 <div class="card">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>User</th><th>Role</th><th>Department</th><th>Manager</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+      <thead><tr><th>User</th><th>Role</th><th>Department</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
       <tbody>
         @forelse($users as $user)
         <tr>
@@ -44,7 +44,6 @@
           </td>
           <td><span class="badge {{ $user->role==='admin' ? 'badge-danger' : ($user->role==='manager' ? 'badge-warning' : 'badge-primary') }}">{{ ucfirst($user->role) }}</span></td>
           <td style="color:var(--muted)">{{ $user->department ?? '—' }}</td>
-          <td style="color:var(--muted)">{{ $user->manager?->name ?? '—' }}</td>
           <td>
             @if($user->is_active)
               <span class="badge badge-success">Active</span>

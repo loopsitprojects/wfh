@@ -18,9 +18,6 @@
       </div>
     </div>
 
-    @if(!auth()->user()->manager_id)
-      <div class="alert alert-danger">You don't have a manager assigned. Contact your admin.</div>
-    @else
     <form method="POST" action="{{ route('employee.pulse.store') }}" enctype="multipart/form-data" id="pulse-form">
       @csrf
 
@@ -51,7 +48,6 @@
         <a href="{{ route('employee.dashboard') }}" class="btn btn-outline">Cancel</a>
       </div>
     </form>
-    @endif
   </div>
 </div>
 @endsection

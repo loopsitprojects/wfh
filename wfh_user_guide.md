@@ -108,9 +108,8 @@ System Administrators maintain system-wide users, link employees to managers, an
 Go to **User Management** in the sidebar:
 1. **Add Users**: Click **Add Manager** or **Add Employee**.
 2. Fill in their username, email, password, and role.
-3. **Manager Assignment**: When creating or editing an employee, you can assign them to a specific Manager who will handle their approvals.
-4. **Deactivating Accounts**: You can click the **Toggle Status** button to temporarily activate or deactivate accounts. Deactivated users cannot log in.
-5. **Editing/Deleting**: Modify profile information or permanently delete accounts (you cannot delete your own account).
+3. **Deactivating Accounts**: You can click the **Toggle Status** button to temporarily activate or deactivate accounts. Deactivated users cannot log in.
+4. **Editing/Deleting**: Modify profile information or permanently delete accounts (you cannot delete your own account).
 
 ### Step 3.2: Activity History Logs
 Admins can oversee every single clock-in/out event in the system:
