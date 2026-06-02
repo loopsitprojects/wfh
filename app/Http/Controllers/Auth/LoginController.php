@@ -23,19 +23,28 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
-            $user = Auth::user();
+        // Find user case-insensitively
+        $user = \App\Models\User::whereRaw('LOWER(username) = ?', [strtolower($credentials['username'])])->first();
 
-            if (!$user->is_active) {
-                Auth::logout();
-                return back()->withErrors(['email' => 'Your account has been deactivated. Contact your administrator.']);
+        if ($user) {
+            $authCredentials = [
+                'username' => $user->username,
+                'password' => $credentials['password'],
+            ];
+
+            if (Auth::attempt($authCredentials, $request->boolean('remember'))) {
+                $request->session()->regenerate();
+
+                if (!$user->is_active) {
+                    Auth::logout();
+                    return back()->withErrors(['username' => 'Your account has been deactivated. Contact your administrator.']);
+                }
+
+                return redirect($user->dashboardRoute());
             }
-
-            return redirect($user->dashboardRoute());
         }
 
-        return back()->withErrors(['email' => 'Invalid email or password.'])->onlyInput('email');
+        return back()->withErrors(['username' => 'Invalid username or password.'])->onlyInput('username');
     }
 
     public function logout(Request $request)
